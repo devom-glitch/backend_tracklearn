@@ -10,6 +10,9 @@ from datetime import datetime
 from sqlalchemy.orm import Session
 from fastapi.middleware.cors import CORSMiddleware
 
+from .hashing import Hash
+
+
 app = FastAPI()
 
 origins = [
@@ -48,7 +51,7 @@ def get_db():
     finally:
         db.close()
 
-@app.post('/read/{book_id}',status_code=status.HTTP_201_CREATED)
+@app.post('/read/{book_id}',status_code=status.HTTP_201_CREATED,tags=['Reads'])
 def create_read(id,request:schemas.Read,db: Session = Depends(get_db)):
     if(validate_t(request.readStartTime) and validate_t(request.readStopTime)):
         read_start_time_obj = datetime.strptime(request.readStartTime,'%d/%m/%y %H:%M:%S')
@@ -64,13 +67,13 @@ def create_read(id,request:schemas.Read,db: Session = Depends(get_db)):
         
 
 #fetch all the books available
-@app.get('/all-book',status_code=status.HTTP_200_OK,) #response_model=List[schemas.ShowBook])
+@app.get('/all-book',status_code=status.HTTP_200_OK,tags=['Blogs']) #response_model=List[schemas.ShowBook])
 def all_book(db: Session = Depends(get_db)):
     books = db.query(models.Book).all()
     return books
 
 #create book with title,read intent and start date
-@app.post('/create-book',status_code=status.HTTP_201_CREATED)
+@app.post('/create-book',status_code=status.HTTP_201_CREATED,tags=['Blogs'])
 def create_book(request: schemas.Book, db: Session = Depends(get_db)):
     if(validate(request.startDate)):
         datetime_obj = datetime.strptime(request.startDate,'%d/%m/%y')
@@ -82,7 +85,7 @@ def create_book(request: schemas.Book, db: Session = Depends(get_db)):
     else:
         raise HTTPException(status_code=status.HTTP_406_NOT_ACCEPTABLE,detail=f"wrong format of startDate : {request.startDate}")
     
-@app.get('/book/{id}',status_code=status.HTTP_200_OK,response_model=schemas.ShowBook)
+@app.get('/book/{id}',status_code=status.HTTP_200_OK,response_model=schemas.ShowBook,tags=['Blogs'])
 def get_a_book(id,response:Response,db: Session = Depends(get_db)):
     showbook = db.query(models.Book).filter(models.Book.id == id).first()
     if not showbook:
@@ -95,7 +98,7 @@ def get_a_book(id,response:Response,db: Session = Depends(get_db)):
 
 
 
-@app.delete('/book/{id}',status_code=status.HTTP_204_NO_CONTENT)
+@app.delete('/book/{id}',status_code=status.HTTP_204_NO_CONTENT,tags=['Blogs'])
 def del_book(id,db: Session = Depends(get_db)):
     del_book = db.query(models.Book).filter(models.Book.id == id)
     if not del_book.first():
@@ -103,7 +106,7 @@ def del_book(id,db: Session = Depends(get_db)):
     del_book.delete(synchronize_session=False)
     db.commit()
 
-@app.put('/book/{id}',status_code=status.HTTP_202_ACCEPTED)
+@app.put('/book/{id}',status_code=status.HTTP_202_ACCEPTED,tags=['Blogs'])
 def update(id,request:schemas.UpdateBook,db:Session = Depends(get_db)):
     update_book = db.query(models.Book).filter(models.Book.id == id)
     if not update_book.first():
@@ -115,4 +118,24 @@ def update(id,request:schemas.UpdateBook,db:Session = Depends(get_db)):
         update_book.update({models.Book.pageMarker:request.pageMarker, models.Book.endDate:datetime_obj},synchronize_session=False)
         db.commit()
     return db.query(models.Book).filter(models.Book.id == id).first()
+     
+     
+     
+   
         
+@app.post('/user',response_model=schemas.ShowUser,tags=['Users'])
+def create_user(request: schemas.User,db:Session=Depends(get_db)):
+    new_user = models.User(name=request.name,email=request.email,password=Hash.bcrypt(request.password))
+    db.add(new_user)
+    db.commit()
+    db.refresh(new_user)
+    return new_user
+
+@app.get('/user/{id}',response_model=schemas.ShowUser,tags=['Users'])
+def get_user(id:int,db:Session = Depends(get_db)):
+    user= db.query(models.User).filter(models.User.id==id).first()
+    if not user: 
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail=f"User with the id {id} is not available")
+    return user
+
+    

@@ -1,3 +1,6 @@
 __pycache__
 backend
 .DS_Store
+db_warehouse/__pycache__/api.cpython-38.pyc
+db_warehouse/__pycache__/models.cpython-38.pyc
+db_warehouse/__pycache__/schemas.cpython-38.pyc
